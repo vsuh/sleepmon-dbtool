@@ -1,0 +1,4 @@
+# Ежедневный инкрементальный бэкап карточек в 01:00 (TZ контейнера — Europe/Moscow).
+# Переменные окружения (VAULT_DIR, BACKUP_DIR, BACKUP_DB, LOG_FILE) пробрасываются
+# в /etc/environment в entrypoint.sh, т.к. cron сам по себе их не видит.
+0 1 * * * root /opt/dbtool/backup.sh
