@@ -36,6 +36,10 @@ import yaml
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n?(.*)\Z", re.DOTALL)
 DATE_IN_NAME_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
 
+# If a daily-form field disappears accidentally, keep the last backed-up value.
+# Explicit YAML nulls are preserved because the key is still present.
+PRESERVE_IF_MISSING_FIELDS = ("alco", "well_being", "sleep_quality")
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS cards (
     path            TEXT PRIMARY KEY,   -- относительный путь от --root
@@ -172,6 +176,16 @@ def cmd_backup(args):
         except ValueError as e:
             errors.append((rel_str, str(e)))
             continue
+
+        # Restore only absent fields from the previous backup. This prevents an
+        # accidental omission in a Markdown file from erasing these values.
+        cur.execute("SELECT frontmatter FROM cards WHERE path = ?", (rel_str,))
+        previous_row = cur.fetchone()
+        if previous_row is not None:
+            previous_frontmatter = json.loads(previous_row[0])
+            for key in PRESERVE_IF_MISSING_FIELDS:
+                if key not in parsed.frontmatter and key in previous_frontmatter:
+                    parsed.frontmatter[key] = previous_frontmatter[key]
 
         # Храним frontmatter в исходном порядке ключей (для аккуратного restore),
         # а хеш считаем по канонической (отсортированной) форме, чтобы простое
